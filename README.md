@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# One-template Portfolio Builder (SaaS)
 
-## Getting Started
+Production-ready portfolio builder with:
 
-First, run the development server:
+- Next.js App Router + TypeScript
+- Prisma ORM + PostgreSQL
+- NextAuth (Credentials)
+- Tailwind CSS + glassy white UI
+- dnd-kit drag & drop section ordering
+- Zod validation
+
+## Local setup
+
+1. Install deps
+
+```bash
+npm install
+```
+
+2. Configure environment
+
+Copy [.env.example](.env.example) to `.env` and fill in values:
+
+- `DATABASE_URL` (PostgreSQL; for Neon use the _Pooled_ connection string)
+- `MIGRATE_DATABASE_URL` (optional; for Neon use the _Direct_ connection string for migrations)
+- `NEXTAUTH_URL` (e.g. `http://localhost:3000`)
+- `NEXTAUTH_SECRET` (long random string)
+
+3. Prisma
+
+```bash
+npx prisma migrate dev
+```
+
+4. Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## App routes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/register` create account
+- `/login` sign in
+- `/dashboard` edit username, create portfolio (1 per user), publish/unpublish
+- `/dashboard/editor` drag & drop reorder + inline editing + save
+- `/<username>` public portfolio (404 if unpublished)
 
-## Learn More
+## Deployment (Vercel + Prisma)
 
-To learn more about Next.js, take a look at the following resources:
+1. Create a PostgreSQL database (Neon recommended)
+2. Set Vercel Environment Variables:
+   - `DATABASE_URL` (Neon: pooled)
+   - `MIGRATE_DATABASE_URL` (Neon: direct; used for `prisma migrate deploy`)
+   - `NEXTAUTH_URL` (your production URL)
+   - `NEXTAUTH_SECRET`
+3. Run migrations in CI or manually:
+   - Option A: `npx prisma migrate deploy` during build (recommended)
+   - Option B: run `prisma migrate deploy` from a deploy hook
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Notes:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- API route handlers use `runtime = "nodejs"` (safe for Prisma + bcrypt).
+- Ensure `NEXTAUTH_URL` matches your Vercel domain.

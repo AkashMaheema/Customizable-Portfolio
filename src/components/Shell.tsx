@@ -12,13 +12,13 @@ export function Shell({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-zinc-50">
       <div className="mx-auto w-full max-w-4xl px-6 py-10">
         <div className="mb-8 flex items-start justify-between gap-6">
           <div>
             <Link
               href="/"
-              className="text-sm text-zinc-500 hover:text-zinc-800"
+              className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
             >
               Portfolio Builder
             </Link>
@@ -32,7 +32,7 @@ export function Shell({
           {right}
         </div>
 
-        <div className="rounded-2xl border border-zinc-200/70 bg-white/60 p-6 backdrop-blur">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           {children}
         </div>
       </div>

@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import type { Section, Sections } from "@/lib/types";
 import { sectionsSchema } from "@/lib/validation";
 import { Button, ButtonSecondary, LinkButton } from "@/components/Buttons";
+import { useToast } from "@/components/ToastProvider";
 
 function uid() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
@@ -126,7 +127,7 @@ function SortableCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-2xl border border-zinc-200/70 bg-white/60 p-5 backdrop-blur ${
+      className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${
         isDragging ? "opacity-80" : ""
       }
       `}
@@ -135,7 +136,7 @@ function SortableCard({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="cursor-grab rounded-full border border-zinc-200 bg-white/70 px-3 py-1 text-xs font-medium text-zinc-900 active:cursor-grabbing"
+            className="cursor-grab rounded-xl border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-900 hover:bg-zinc-50 active:cursor-grabbing"
             {...attributes}
             {...listeners}
             aria-label="Drag handle"
@@ -353,7 +354,7 @@ function ProjectsEditor({
         {items.map((p, idx) => (
           <div
             key={`${section.id}_proj_${idx}`}
-            className="rounded-xl border border-zinc-200 bg-white/70 p-4"
+            className="rounded-xl border border-zinc-200 bg-white p-4"
           >
             <div className="grid gap-2">
               <label className="grid gap-1">
@@ -433,6 +434,7 @@ export function EditorClient({
   initialSections: Sections;
 }) {
   const router = useRouter();
+  const toast = useToast();
 
   const [sections, setSections] = useState<Section[]>(() =>
     normalizePositions(initialSections)
@@ -460,6 +462,7 @@ export function EditorClient({
     if (!parsed.success) {
       setSaving(false);
       setError("Some sections are invalid. Please review your edits.");
+      toast.error("Could not save", "Some sections are invalid.");
       return;
     }
 
@@ -473,9 +476,11 @@ export function EditorClient({
 
     if (!res.ok) {
       setError("Failed to save. Please try again.");
+      toast.error("Save failed", "Please try again.");
       return;
     }
 
+    toast.success("Saved", "Your changes are updated.");
     router.refresh();
   }
 
@@ -505,7 +510,7 @@ export function EditorClient({
           <select
             value={newType}
             onChange={(e) => setNewType(e.target.value as Section["type"])}
-            className="h-10 rounded-full border border-zinc-200 bg-white/70 px-3 text-sm text-zinc-950 outline-none"
+            className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none focus:border-zinc-400"
           >
             <option value="hero">Hero</option>
             <option value="about">About</option>

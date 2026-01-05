@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const base =
-  "inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-medium transition-colors";
+  "inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-zinc-950/15 focus-visible:ring-offset-2";
 
 export function Button({
   children,
@@ -42,7 +42,7 @@ export function ButtonSecondary({
       type={type ?? "button"}
       onClick={onClick}
       disabled={disabled}
-      className={`${base} border border-zinc-200 bg-white/70 text-zinc-950 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50`}
+      className={`${base} border border-zinc-200 bg-white text-zinc-950 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50`}
     >
       {children}
     </button>
@@ -59,7 +59,7 @@ export function LinkButton({
   return (
     <Link
       href={href}
-      className={`${base} border border-zinc-200 bg-white/70 text-zinc-950 hover:bg-white`}
+      className={`${base} border border-zinc-200 bg-white text-zinc-950 hover:bg-zinc-50`}
     >
       {children}
     </Link>

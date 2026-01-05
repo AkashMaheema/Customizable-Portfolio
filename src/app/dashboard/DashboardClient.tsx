@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Button, ButtonSecondary, LinkButton } from "@/components/Buttons";
+import { useToast } from "@/components/ToastProvider";
 
 function useDebounced<T>(value: T, delayMs: number) {
   const [debounced, setDebounced] = useState(value);
@@ -28,6 +29,7 @@ export function DashboardClient({
   publicUrl: string;
 }) {
   const router = useRouter();
+  const toast = useToast();
 
   const [username, setUsername] = useState(initialUsername);
   const [availability, setAvailability] = useState<
@@ -120,10 +122,18 @@ export function DashboardClient({
     setSavingUsername(false);
 
     if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      toast.error(
+        "Could not update username",
+        data?.error ?? "Please try again."
+      );
       router.refresh();
       return;
     }
 
+    toast.success("Username updated", "Your public URL was updated.");
     router.refresh();
   }
 
@@ -131,8 +141,18 @@ export function DashboardClient({
     const res = await fetch("/api/portfolio", { method: "POST" });
     if (res.ok) {
       setPortfolioExists(true);
+      toast.success("Portfolio created", "Open the editor to customize it.");
       router.refresh();
+      return;
     }
+
+    const data = (await res.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    toast.error(
+      "Could not create portfolio",
+      data?.error ?? "Please try again."
+    );
   }
 
   async function togglePublish(next: boolean) {
@@ -143,7 +163,18 @@ export function DashboardClient({
       body: JSON.stringify({ isPublished: next }),
     });
     setPublishing(false);
-    if (res.ok) setPublished(next);
+    if (res.ok) {
+      setPublished(next);
+      toast.success(next ? "Portfolio is live" : "Portfolio unpublished");
+    } else {
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      toast.error(
+        "Could not update publishing",
+        data?.error ?? "Please try again."
+      );
+    }
     router.refresh();
   }
 
@@ -195,7 +226,7 @@ export function DashboardClient({
           </Button>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white/70 p-4">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-zinc-700">
             Public URL:{" "}
             <span className="font-medium text-zinc-950">{publicUrl}</span>
@@ -218,7 +249,7 @@ export function DashboardClient({
         </div>
 
         {!portfolioExists ? (
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white/70 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
             <div>
               <p className="text-sm font-medium text-zinc-950">
                 Create your portfolio
@@ -230,25 +261,33 @@ export function DashboardClient({
             <Button onClick={createPortfolio}>Create portfolio</Button>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white/70 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
             <div>
-              <p className="text-sm font-medium text-zinc-950">Publishing</p>
+              <p className="text-sm font-medium text-zinc-950">
+                {published ? "Published" : "Go Live"}
+              </p>
               <p className="text-sm text-zinc-600">
                 {published
                   ? "Your portfolio is live."
-                  : "Your portfolio is not published."}
+                  : "Publish to make your portfolio live."}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <ButtonSecondary
-                disabled={publishing}
-                onClick={() => togglePublish(false)}
-              >
-                Unpublish
-              </ButtonSecondary>
-              <Button disabled={publishing} onClick={() => togglePublish(true)}>
-                Publish
-              </Button>
+              {published ? (
+                <ButtonSecondary
+                  disabled={publishing}
+                  onClick={() => togglePublish(false)}
+                >
+                  Unpublish
+                </ButtonSecondary>
+              ) : (
+                <Button
+                  disabled={publishing}
+                  onClick={() => togglePublish(true)}
+                >
+                  Publish
+                </Button>
+              )}
             </div>
           </div>
         )}

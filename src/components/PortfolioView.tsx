@@ -8,21 +8,80 @@ export function PortfolioView({
   sections: Sections;
 }) {
   const sorted = [...sections].sort((a, b) => a.position - b.position);
+  const heroFirst = sorted.length > 0 && sorted[0]?.type === "hero";
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-3xl px-6 py-16">
-        <div className="mb-12 rounded-2xl border border-zinc-200/70 bg-white/60 p-8 backdrop-blur">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">
-            {username}
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
-            Portfolio
-          </h1>
-        </div>
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto w-full max-w-5xl px-6 py-14">
+        {heroFirst ? (
+          (() => {
+            const section = sorted[0];
+            const name = String(section.content.name ?? username);
+            const headline = String(section.content.headline ?? "");
+            const links = Array.isArray(section.content.links)
+              ? (
+                  section.content.links as Array<{
+                    label?: unknown;
+                    href?: unknown;
+                  }>
+                ).map((l) => ({
+                  label: String(l?.label ?? "Link"),
+                  href: String(l?.href ?? "#"),
+                }))
+              : [];
+
+            return (
+              <header className="mb-10 rounded-3xl border border-zinc-200 bg-white p-10 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  @{username}
+                </p>
+                <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
+                  <div>
+                    <h1 className="text-4xl font-semibold tracking-tight text-zinc-950">
+                      {name}
+                    </h1>
+                    {headline ? (
+                      <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
+                        {headline}
+                      </p>
+                    ) : null}
+                    {links.length ? (
+                      <div className="mt-6 flex flex-wrap gap-2">
+                        {links.map((l, i) => (
+                          <a
+                            key={`${section.id}_link_${i}`}
+                            href={l.href}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50"
+                          >
+                            {l.label}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="hidden lg:block">
+                    <div className="h-28 w-28 rounded-3xl border border-zinc-200 bg-zinc-50" />
+                  </div>
+                </div>
+              </header>
+            );
+          })()
+        ) : (
+          <header className="mb-10 rounded-3xl border border-zinc-200 bg-white p-10 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              @{username}
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950">
+              Portfolio
+            </h1>
+          </header>
+        )}
 
         <div className="grid gap-8">
-          {sorted.map((section) => {
+          {sorted.map((section, index) => {
+            if (heroFirst && index === 0) return null;
+
             if (section.type === "hero") {
               const name = String(section.content.name ?? "");
               const headline = String(section.content.headline ?? "");
@@ -41,21 +100,26 @@ export function PortfolioView({
               return (
                 <section
                   key={section.id}
-                  className="rounded-2xl border border-zinc-200/70 bg-white/60 p-8 backdrop-blur"
+                  className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
                 >
-                  <h2 className="text-3xl font-semibold tracking-tight text-zinc-950">
-                    {name}
-                  </h2>
-                  <p className="mt-3 text-base leading-7 text-zinc-600">
-                    {headline}
+                  <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                    Hero
                   </p>
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">
+                    {name || username}
+                  </h2>
+                  {headline ? (
+                    <p className="mt-3 text-sm leading-7 text-zinc-600">
+                      {headline}
+                    </p>
+                  ) : null}
                   {links.length ? (
                     <div className="mt-5 flex flex-wrap gap-2">
                       {links.map((l, i) => (
                         <a
                           key={`${section.id}_link_${i}`}
                           href={l.href}
-                          className="rounded-full border border-zinc-200 bg-white/70 px-4 py-2 text-sm text-zinc-900 hover:bg-white"
+                          className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50"
                         >
                           {l.label}
                         </a>
@@ -71,7 +135,7 @@ export function PortfolioView({
               return (
                 <section
                   key={section.id}
-                  className="rounded-2xl border border-zinc-200/70 bg-white/60 p-8 backdrop-blur"
+                  className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
                 >
                   <h2 className="text-lg font-semibold text-zinc-950">About</h2>
                   <p className="mt-3 text-sm leading-7 text-zinc-600">{body}</p>
@@ -86,7 +150,7 @@ export function PortfolioView({
               return (
                 <section
                   key={section.id}
-                  className="rounded-2xl border border-zinc-200/70 bg-white/60 p-8 backdrop-blur"
+                  className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
                 >
                   <h2 className="text-lg font-semibold text-zinc-950">
                     Skills
@@ -95,7 +159,7 @@ export function PortfolioView({
                     {items.map((s, i) => (
                       <span
                         key={`${section.id}_skill_${i}`}
-                        className="rounded-full border border-zinc-200 bg-white/70 px-4 py-2 text-sm text-zinc-900"
+                        className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900"
                       >
                         {s}
                       </span>
@@ -123,7 +187,7 @@ export function PortfolioView({
               return (
                 <section
                   key={section.id}
-                  className="rounded-2xl border border-zinc-200/70 bg-white/60 p-8 backdrop-blur"
+                  className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
                 >
                   <h2 className="text-lg font-semibold text-zinc-950">
                     Projects
@@ -133,13 +197,18 @@ export function PortfolioView({
                       <a
                         key={`${section.id}_proj_${i}`}
                         href={p.href}
-                        className="rounded-xl border border-zinc-200 bg-white/70 p-4 hover:bg-white"
+                        className="group rounded-2xl border border-zinc-200 bg-white p-5 hover:bg-zinc-50"
                       >
-                        <p className="text-sm font-medium text-zinc-950">
-                          {p.name}
-                        </p>
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm font-semibold text-zinc-950">
+                            {p.name}
+                          </p>
+                          <span className="text-xs font-medium text-zinc-500 group-hover:text-zinc-700">
+                            View
+                          </span>
+                        </div>
                         {p.description ? (
-                          <p className="mt-1 text-sm text-zinc-600">
+                          <p className="mt-2 text-sm leading-7 text-zinc-600">
                             {p.description}
                           </p>
                         ) : null}
@@ -157,7 +226,7 @@ export function PortfolioView({
               return (
                 <section
                   key={section.id}
-                  className="rounded-2xl border border-zinc-200/70 bg-white/60 p-8 backdrop-blur"
+                  className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
                 >
                   <h2 className="text-lg font-semibold text-zinc-950">
                     Contact
@@ -165,7 +234,7 @@ export function PortfolioView({
                   <div className="mt-3 grid gap-2 text-sm text-zinc-600">
                     {email ? (
                       <a
-                        className="text-zinc-900 underline"
+                        className="text-zinc-950 underline underline-offset-4"
                         href={`mailto:${email}`}
                       >
                         {email}
@@ -184,7 +253,7 @@ export function PortfolioView({
             return (
               <section
                 key={section.id}
-                className="rounded-2xl border border-zinc-200/70 bg-white/60 p-8 backdrop-blur"
+                className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
               >
                 <h2 className="text-lg font-semibold text-zinc-950">{title}</h2>
                 {body ? (

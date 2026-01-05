@@ -11,19 +11,22 @@ export default async function EditorPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const portfolio = await prisma.portfolio.findUnique({
-    where: { userId: session.user.id },
-    select: { sections: true },
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      username: true,
+      portfolio: { select: { sections: true } },
+    },
   });
 
-  if (!portfolio) redirect("/dashboard");
+  if (!user?.portfolio) redirect("/dashboard");
 
-  const sections = sectionsSchema.safeParse(portfolio.sections);
+  const sections = sectionsSchema.safeParse(user.portfolio.sections);
   if (!sections.success) redirect("/dashboard");
 
   return (
     <Shell title="Editor" subtitle="Reorder sections and edit content inline.">
-      <EditorClient initialSections={sections.data} />
+      <EditorClient username={user.username} initialSections={sections.data} />
     </Shell>
   );
 }

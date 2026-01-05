@@ -13,7 +13,7 @@ export function Shell({
 }) {
   return (
     <div className="min-h-screen bg-zinc-50">
-      <div className="mx-auto w-full max-w-4xl px-6 py-10">
+      <div className="mx-auto w-full max-w-5xl px-6 py-10">
         <div className="mb-8 flex items-start justify-between gap-6">
           <div>
             <Link

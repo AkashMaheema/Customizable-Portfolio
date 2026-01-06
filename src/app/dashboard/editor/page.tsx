@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/session";
-import { sectionsSchema } from "@/lib/validation";
+import { portfolioDataSchema } from "@/lib/validation";
 import { Shell } from "@/components/Shell";
+import { ToastProvider } from "@/components/ToastProvider";
 import { EditorClient } from "./EditorClient";
 
 export const runtime = "nodejs";
@@ -21,12 +22,18 @@ export default async function EditorPage() {
 
   if (!user?.portfolio) redirect("/dashboard");
 
-  const sections = sectionsSchema.safeParse(user.portfolio.sections);
-  if (!sections.success) redirect("/dashboard");
+  const portfolio = portfolioDataSchema.safeParse(user.portfolio.sections);
+  if (!portfolio.success) redirect("/dashboard");
 
   return (
     <Shell title="Editor" subtitle="Reorder sections and edit content inline.">
-      <EditorClient username={user.username} initialSections={sections.data} />
+      <ToastProvider>
+        <EditorClient
+          username={user.username}
+          initialSections={portfolio.data.sections}
+          initialPage={portfolio.data.page}
+        />
+      </ToastProvider>
     </Shell>
   );
 }

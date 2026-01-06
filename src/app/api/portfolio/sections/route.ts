@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/session";
-import { normalizePositions } from "@/lib/portfolio";
-import { saveSectionsSchema } from "@/lib/validation";
+import { normalizePortfolioData } from "@/lib/portfolio";
+import { savePortfolioSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -13,7 +13,7 @@ export async function PUT(req: Request) {
   }
 
   const body = await req.json().catch(() => null);
-  const parsed = saveSectionsSchema.safeParse(body);
+  const parsed = savePortfolioSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid input", issues: parsed.error.flatten() },
@@ -30,12 +30,15 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Portfolio not found" }, { status: 404 });
   }
 
-  const sections = normalizePositions(parsed.data.sections);
+  const nextData = normalizePortfolioData({
+    page: parsed.data.page,
+    sections: parsed.data.sections,
+  });
 
   await prisma.portfolio.update({
     where: { id: portfolio.id },
-    data: { sections },
+    data: { sections: nextData },
   });
 
-  return NextResponse.json({ ok: true, sections }, { status: 200 });
+  return NextResponse.json({ ok: true, ...nextData }, { status: 200 });
 }

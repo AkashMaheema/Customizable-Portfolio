@@ -100,18 +100,166 @@ function normalizePositions(sections: Section[]) {
     .map((s, i) => ({ ...s, position: i }));
 }
 
+type BackgroundStyle = {
+  mode?: "solid" | "gradient";
+  color?: string;
+  from?: string;
+  to?: string;
+  direction?:
+    | "to-r"
+    | "to-l"
+    | "to-b"
+    | "to-t"
+    | "to-br"
+    | "to-bl"
+    | "to-tr"
+    | "to-tl";
+};
+
+function normalizeBackgroundStyle(input: unknown): Required<BackgroundStyle> {
+  const bg = (input ?? {}) as BackgroundStyle;
+  const mode = bg.mode === "gradient" ? "gradient" : "solid";
+
+  return {
+    mode,
+    color: typeof bg.color === "string" && bg.color ? bg.color : "#ffffff",
+    from: typeof bg.from === "string" && bg.from ? bg.from : "#ffffff",
+    to: typeof bg.to === "string" && bg.to ? bg.to : "#ffffff",
+    direction:
+      bg.direction === "to-l" ||
+      bg.direction === "to-b" ||
+      bg.direction === "to-t" ||
+      bg.direction === "to-br" ||
+      bg.direction === "to-bl" ||
+      bg.direction === "to-tr" ||
+      bg.direction === "to-tl"
+        ? bg.direction
+        : "to-r",
+  };
+}
+
+function directionToCss(dir: Required<BackgroundStyle>["direction"]) {
+  switch (dir) {
+    case "to-r":
+      return "to right";
+    case "to-l":
+      return "to left";
+    case "to-b":
+      return "to bottom";
+    case "to-t":
+      return "to top";
+    case "to-br":
+      return "to bottom right";
+    case "to-bl":
+      return "to bottom left";
+    case "to-tr":
+      return "to top right";
+    case "to-tl":
+      return "to top left";
+  }
+}
+
+function backgroundCss(bg: unknown): React.CSSProperties {
+  const n = normalizeBackgroundStyle(bg);
+  if (n.mode === "gradient") {
+    return {
+      backgroundImage: `linear-gradient(${directionToCss(n.direction)}, ${
+        n.from
+      }, ${n.to})`,
+    };
+  }
+  return { backgroundColor: n.color };
+}
+
 function SortableChrome({
   section,
   dragHandle,
+  background,
+  onBackgroundChange,
   onDelete,
 }: {
   section: Section;
   dragHandle: React.ReactNode;
+  background: Required<BackgroundStyle>;
+  onBackgroundChange: (next: Required<BackgroundStyle>) => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="pointer-events-auto flex items-center gap-2">
+    <div className="pointer-events-auto flex flex-wrap items-center gap-2">
       {dragHandle}
+
+      <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-1">
+        <span className="text-xs font-medium text-zinc-700">Bg</span>
+        <select
+          value={background.mode}
+          onChange={(e) =>
+            onBackgroundChange({
+              ...background,
+              mode: e.target.value as Required<BackgroundStyle>["mode"],
+            })
+          }
+          className="h-7 rounded-lg border border-zinc-200 bg-white px-2 text-xs text-zinc-950 outline-none focus:border-zinc-400"
+          aria-label="Section background mode"
+        >
+          <option value="solid">Solid</option>
+          <option value="gradient">Gradient</option>
+        </select>
+
+        {background.mode === "solid" ? (
+          <input
+            type="color"
+            value={background.color}
+            onChange={(e) =>
+              onBackgroundChange({ ...background, color: e.target.value })
+            }
+            aria-label="Section background color"
+            className="h-6 w-8 rounded-md border border-zinc-200 bg-white p-0"
+          />
+        ) : (
+          <>
+            <select
+              value={background.direction}
+              onChange={(e) =>
+                onBackgroundChange({
+                  ...background,
+                  direction: e.target
+                    .value as Required<BackgroundStyle>["direction"],
+                })
+              }
+              className="h-7 rounded-lg border border-zinc-200 bg-white px-2 text-xs text-zinc-950 outline-none focus:border-zinc-400"
+              aria-label="Gradient direction"
+            >
+              <option value="to-r">→</option>
+              <option value="to-l">←</option>
+              <option value="to-b">↓</option>
+              <option value="to-t">↑</option>
+              <option value="to-br">↘</option>
+              <option value="to-bl">↙</option>
+              <option value="to-tr">↗</option>
+              <option value="to-tl">↖</option>
+            </select>
+            <input
+              type="color"
+              value={background.from}
+              onChange={(e) =>
+                onBackgroundChange({ ...background, from: e.target.value })
+              }
+              aria-label="Gradient from color"
+              className="h-6 w-8 rounded-md border border-zinc-200 bg-white p-0"
+            />
+            <input
+              type="color"
+              value={background.to}
+              onChange={(e) =>
+                onBackgroundChange({ ...background, to: e.target.value })
+              }
+              aria-label="Gradient to color"
+              className="h-6 w-8 rounded-md border border-zinc-200 bg-white p-0"
+            />
+          </>
+        )}
+      </div>
+
       <button
         type="button"
         onClick={onDelete}
@@ -119,6 +267,7 @@ function SortableChrome({
       >
         Delete
       </button>
+
       <span className="hidden sm:inline text-xs font-medium uppercase tracking-wide text-zinc-500">
         {section.type}
       </span>
@@ -229,6 +378,12 @@ function SortablePreviewSection({
     transition,
   };
 
+  const background = normalizeBackgroundStyle(section.style?.background);
+  const containerStyle = {
+    ...style,
+    ...backgroundCss(section.style?.background),
+  };
+
   const dragHandle = (
     <button
       type="button"
@@ -259,7 +414,7 @@ function SortablePreviewSection({
     return (
       <section
         ref={setNodeRef}
-        style={style}
+        style={containerStyle}
         className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
@@ -268,6 +423,16 @@ function SortablePreviewSection({
           <SortableChrome
             section={section}
             dragHandle={dragHandle}
+            background={background}
+            onBackgroundChange={(nextBg) =>
+              onChange({
+                ...section,
+                style: {
+                  ...(section.style ?? {}),
+                  background: nextBg,
+                },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
@@ -336,7 +501,7 @@ function SortablePreviewSection({
     return (
       <section
         ref={setNodeRef}
-        style={style}
+        style={containerStyle}
         className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
@@ -345,6 +510,16 @@ function SortablePreviewSection({
           <SortableChrome
             section={section}
             dragHandle={dragHandle}
+            background={background}
+            onBackgroundChange={(nextBg) =>
+              onChange({
+                ...section,
+                style: {
+                  ...(section.style ?? {}),
+                  background: nextBg,
+                },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
@@ -373,7 +548,7 @@ function SortablePreviewSection({
     return (
       <section
         ref={setNodeRef}
-        style={style}
+        style={containerStyle}
         className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
@@ -382,6 +557,16 @@ function SortablePreviewSection({
           <SortableChrome
             section={section}
             dragHandle={dragHandle}
+            background={background}
+            onBackgroundChange={(nextBg) =>
+              onChange({
+                ...section,
+                style: {
+                  ...(section.style ?? {}),
+                  background: nextBg,
+                },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
@@ -424,7 +609,7 @@ function SortablePreviewSection({
     return (
       <section
         ref={setNodeRef}
-        style={style}
+        style={containerStyle}
         className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
@@ -433,6 +618,16 @@ function SortablePreviewSection({
           <SortableChrome
             section={section}
             dragHandle={dragHandle}
+            background={background}
+            onBackgroundChange={(nextBg) =>
+              onChange({
+                ...section,
+                style: {
+                  ...(section.style ?? {}),
+                  background: nextBg,
+                },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
@@ -450,7 +645,7 @@ function SortablePreviewSection({
     return (
       <section
         ref={setNodeRef}
-        style={style}
+        style={containerStyle}
         className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
@@ -459,6 +654,16 @@ function SortablePreviewSection({
           <SortableChrome
             section={section}
             dragHandle={dragHandle}
+            background={background}
+            onBackgroundChange={(nextBg) =>
+              onChange({
+                ...section,
+                style: {
+                  ...(section.style ?? {}),
+                  background: nextBg,
+                },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
@@ -504,7 +709,7 @@ function SortablePreviewSection({
   return (
     <section
       ref={setNodeRef}
-      style={style}
+      style={containerStyle}
       className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
         isDragging ? "opacity-80" : ""
       }`}
@@ -513,6 +718,16 @@ function SortablePreviewSection({
         <SortableChrome
           section={section}
           dragHandle={dragHandle}
+          background={background}
+          onBackgroundChange={(nextBg) =>
+            onChange({
+              ...section,
+              style: {
+                ...(section.style ?? {}),
+                background: nextBg,
+              },
+            })
+          }
           onDelete={onDelete}
         />
       </div>
@@ -573,6 +788,12 @@ function SortableHeroHeader({
     transition,
   };
 
+  const background = normalizeBackgroundStyle(section.style?.background);
+  const containerStyle = {
+    ...style,
+    ...backgroundCss(section.style?.background),
+  };
+
   const name = String(section.content.name ?? username);
   const headline = String(section.content.headline ?? "");
   const links = Array.isArray(section.content.links)
@@ -602,7 +823,7 @@ function SortableHeroHeader({
   return (
     <header
       ref={setNodeRef}
-      style={style}
+      style={containerStyle}
       className={`relative rounded-3xl border border-zinc-200 bg-white p-10 shadow-sm ${
         isDragging ? "opacity-80" : ""
       }`}
@@ -611,6 +832,16 @@ function SortableHeroHeader({
         <SortableChrome
           section={section}
           dragHandle={dragHandle}
+          background={background}
+          onBackgroundChange={(nextBg) =>
+            onChange({
+              ...section,
+              style: {
+                ...(section.style ?? {}),
+                background: nextBg,
+              },
+            })
+          }
           onDelete={onDelete}
         />
       </div>
@@ -806,15 +1037,23 @@ function ProjectsEditor({
 export function EditorClient({
   username,
   initialSections,
+  initialPage,
 }: {
   username: string;
   initialSections: Sections;
+  initialPage?: {
+    background?: { mode?: "solid" | "gradient"; color?: string };
+  };
 }) {
   const router = useRouter();
   const toast = useToast();
 
   const [sections, setSections] = useState<Section[]>(() =>
     normalizePositions(initialSections)
+  );
+
+  const [pageBackground, setPageBackground] = useState(
+    String(initialPage?.background?.color ?? "#ffffff")
   );
 
   const [saving, setSaving] = useState(false);
@@ -851,7 +1090,15 @@ export function EditorClient({
     const res = await fetch("/api/portfolio/sections", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sections: normalizePositions(parsed.data) }),
+      body: JSON.stringify({
+        page: {
+          background: {
+            mode: "solid",
+            color: pageBackground,
+          },
+        },
+        sections: normalizePositions(parsed.data),
+      }),
     });
 
     setSaving(false);
@@ -867,7 +1114,7 @@ export function EditorClient({
   }
 
   return (
-    <div className="relative">
+    <div className="relative" style={{ backgroundColor: pageBackground }}>
       <div className="pb-28">
         {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
 
@@ -937,6 +1184,19 @@ export function EditorClient({
             </div>
 
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2">
+                <span className="text-xs font-medium text-zinc-700">
+                  Background
+                </span>
+                <input
+                  type="color"
+                  value={pageBackground}
+                  onChange={(e) => setPageBackground(e.target.value)}
+                  aria-label="Page background color"
+                  className="h-6 w-8 rounded-md border border-zinc-200 bg-white p-0"
+                />
+              </div>
+
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value as Section["type"])}

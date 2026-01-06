@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Shell } from "@/components/Shell";
+import { ToastProvider } from "@/components/ToastProvider";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/session";
 import { DashboardClient } from "./DashboardClient";
@@ -25,12 +26,14 @@ export default async function DashboardPage() {
       title="Dashboard"
       subtitle="Edit your username, portfolio sections, and publishing status."
     >
-      <DashboardClient
-        username={user.username}
-        hasPortfolio={!!user.portfolio}
-        isPublished={user.portfolio?.isPublished ?? false}
-        publicUrl={`/${user.username}`}
-      />
+      <ToastProvider>
+        <DashboardClient
+          username={user.username}
+          hasPortfolio={!!user.portfolio}
+          isPublished={user.portfolio?.isPublished ?? false}
+          publicUrl={`/${user.username}`}
+        />
+      </ToastProvider>
     </Shell>
   );
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/session";
-import { defaultSections } from "@/lib/portfolio";
+import { defaultPortfolioData } from "@/lib/portfolio";
 
 export const runtime = "nodejs";
 
@@ -26,7 +26,7 @@ export async function POST() {
   const portfolio = await prisma.portfolio.create({
     data: {
       userId: session.user.id,
-      sections: defaultSections(),
+      sections: defaultPortfolioData(),
     },
     select: { id: true },
   });

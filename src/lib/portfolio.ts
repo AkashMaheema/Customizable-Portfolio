@@ -1,4 +1,4 @@
-import { sectionsSchema } from "./validation";
+import { portfolioDataSchema, sectionsSchema } from "./validation";
 
 function uid() {
   // Good-enough for client-only IDs; persisted in DB.
@@ -61,8 +61,28 @@ export function defaultSections() {
   return sectionsSchema.parse(sections);
 }
 
+export function defaultPortfolioData() {
+  return portfolioDataSchema.parse({
+    page: {
+      background: {
+        mode: "solid",
+        color: "#ffffff",
+      },
+    },
+    sections: defaultSections(),
+  });
+}
+
 export function normalizePositions(sections: unknown) {
   const parsed = sectionsSchema.parse(sections);
   const sorted = [...parsed].sort((a, b) => a.position - b.position);
   return sorted.map((s, i) => ({ ...s, position: i }));
+}
+
+export function normalizePortfolioData(data: unknown) {
+  const parsed = portfolioDataSchema.parse(data);
+  return {
+    page: parsed.page,
+    sections: normalizePositions(parsed.sections),
+  };
 }

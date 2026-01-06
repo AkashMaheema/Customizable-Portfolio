@@ -1,17 +1,94 @@
 import type { Sections } from "@/lib/types";
 
+type BackgroundStyle = {
+  mode?: "solid" | "gradient";
+  color?: string;
+  from?: string;
+  to?: string;
+  direction?:
+    | "to-r"
+    | "to-l"
+    | "to-b"
+    | "to-t"
+    | "to-br"
+    | "to-bl"
+    | "to-tr"
+    | "to-tl";
+};
+
+function normalizeBackgroundStyle(input: unknown): Required<BackgroundStyle> {
+  const bg = (input ?? {}) as BackgroundStyle;
+  const mode = bg.mode === "gradient" ? "gradient" : "solid";
+
+  return {
+    mode,
+    color: typeof bg.color === "string" && bg.color ? bg.color : "#ffffff",
+    from: typeof bg.from === "string" && bg.from ? bg.from : "#ffffff",
+    to: typeof bg.to === "string" && bg.to ? bg.to : "#ffffff",
+    direction:
+      bg.direction === "to-l" ||
+      bg.direction === "to-b" ||
+      bg.direction === "to-t" ||
+      bg.direction === "to-br" ||
+      bg.direction === "to-bl" ||
+      bg.direction === "to-tr" ||
+      bg.direction === "to-tl"
+        ? bg.direction
+        : "to-r",
+  };
+}
+
+function directionToCss(dir: Required<BackgroundStyle>["direction"]) {
+  switch (dir) {
+    case "to-r":
+      return "to right";
+    case "to-l":
+      return "to left";
+    case "to-b":
+      return "to bottom";
+    case "to-t":
+      return "to top";
+    case "to-br":
+      return "to bottom right";
+    case "to-bl":
+      return "to bottom left";
+    case "to-tr":
+      return "to top right";
+    case "to-tl":
+      return "to top left";
+  }
+}
+
+function backgroundCss(bg: unknown): React.CSSProperties {
+  const n = normalizeBackgroundStyle(bg);
+  if (n.mode === "gradient") {
+    return {
+      backgroundImage: `linear-gradient(${directionToCss(n.direction)}, ${
+        n.from
+      }, ${n.to})`,
+    };
+  }
+  return { backgroundColor: n.color };
+}
+
 export function PortfolioView({
   username,
   sections,
+  page,
 }: {
   username: string;
   sections: Sections;
+  page?: { background?: { mode?: "solid" | "gradient"; color?: string } };
 }) {
   const sorted = [...sections].sort((a, b) => a.position - b.position);
   const heroFirst = sorted.length > 0 && sorted[0]?.type === "hero";
+  const pageBackground = page?.background?.color;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div
+      className="min-h-screen"
+      style={pageBackground ? { backgroundColor: pageBackground } : undefined}
+    >
       <div className="mx-auto w-full max-w-5xl px-6 py-14">
         {heroFirst ? (
           (() => {
@@ -31,7 +108,10 @@ export function PortfolioView({
               : [];
 
             return (
-              <header className="mb-10 rounded-3xl border border-zinc-200 bg-white p-10 shadow-sm">
+              <header
+                className="mb-10 rounded-3xl border border-zinc-200 bg-white p-10 shadow-sm"
+                style={backgroundCss(section.style?.background)}
+              >
                 <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                   @{username}
                 </p>
@@ -101,6 +181,7 @@ export function PortfolioView({
                 <section
                   key={section.id}
                   className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                  style={backgroundCss(section.style?.background)}
                 >
                   <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                     Hero
@@ -136,6 +217,7 @@ export function PortfolioView({
                 <section
                   key={section.id}
                   className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                  style={backgroundCss(section.style?.background)}
                 >
                   <h2 className="text-lg font-semibold text-zinc-950">About</h2>
                   <p className="mt-3 text-sm leading-7 text-zinc-600">{body}</p>
@@ -151,6 +233,7 @@ export function PortfolioView({
                 <section
                   key={section.id}
                   className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                  style={backgroundCss(section.style?.background)}
                 >
                   <h2 className="text-lg font-semibold text-zinc-950">
                     Skills
@@ -188,6 +271,7 @@ export function PortfolioView({
                 <section
                   key={section.id}
                   className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                  style={backgroundCss(section.style?.background)}
                 >
                   <h2 className="text-lg font-semibold text-zinc-950">
                     Projects
@@ -227,6 +311,7 @@ export function PortfolioView({
                 <section
                   key={section.id}
                   className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                  style={backgroundCss(section.style?.background)}
                 >
                   <h2 className="text-lg font-semibold text-zinc-950">
                     Contact
@@ -254,6 +339,7 @@ export function PortfolioView({
               <section
                 key={section.id}
                 className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                style={backgroundCss(section.style?.background)}
               >
                 <h2 className="text-lg font-semibold text-zinc-950">{title}</h2>
                 {body ? (

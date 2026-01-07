@@ -37,18 +37,11 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const u = debouncedUsername.trim();
-    if (!u) {
-      setAvailability("idle");
-      return;
-    }
+    if (!u) return;
 
     const cached = usernameCache[u];
-    if (cached) {
-      setAvailability(cached);
-      return;
-    }
-
-    setAvailability("checking");
+    if (cached) return;
+    if (availability !== "checking") return;
     const controller = new AbortController();
 
     fetch(`/api/username/check?username=${encodeURIComponent(u)}`, {
@@ -57,6 +50,7 @@ export default function RegisterPage() {
     })
       .then((r) => r.json())
       .then((data: { available?: boolean; reason?: string }) => {
+        if (controller.signal.aborted) return;
         if (data.reason === "invalid") {
           setUsernameCache((prev) => ({ ...prev, [u]: "invalid" }));
           setAvailability("invalid");
@@ -70,12 +64,16 @@ export default function RegisterPage() {
         setUsernameCache((prev) => ({ ...prev, [u]: next }));
         setAvailability(next);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        if (err && typeof err === "object" && "name" in err) {
+          if ((err as { name?: unknown }).name === "AbortError") return;
+        }
         setAvailability("error");
       });
 
     return () => controller.abort();
-  }, [debouncedUsername]);
+  }, [availability, debouncedUsername, usernameCache]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -161,6 +159,13 @@ export default function RegisterPage() {
                 setAvailability("idle");
                 return;
               }
+
+              const cached = usernameCache[trimmed];
+              if (cached) {
+                setAvailability(cached);
+                return;
+              }
+
               if (trimmed.length >= 3) setAvailability("checking");
             }}
             type="text"

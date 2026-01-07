@@ -11,6 +11,7 @@ export function defaultSections() {
       id: uid(),
       type: "hero" as const,
       position: 0,
+      layout: { x: 0, y: 0, w: 720, h: 320, orientation: "landscape" as const },
       content: {
         name: "Your Name",
         headline: "What you do, in one sentence.",
@@ -21,6 +22,13 @@ export function defaultSections() {
       id: uid(),
       type: "about" as const,
       position: 1,
+      layout: {
+        x: 0,
+        y: 260,
+        w: 448,
+        h: 420,
+        orientation: "portrait" as const,
+      },
       content: {
         body: "Write a short bio. Keep it concise and specific.",
       },
@@ -29,6 +37,13 @@ export function defaultSections() {
       id: uid(),
       type: "skills" as const,
       position: 2,
+      layout: {
+        x: 0,
+        y: 520,
+        w: 448,
+        h: 420,
+        orientation: "portrait" as const,
+      },
       content: {
         items: ["TypeScript", "React", "PostgreSQL"],
       },
@@ -37,6 +52,13 @@ export function defaultSections() {
       id: uid(),
       type: "projects" as const,
       position: 3,
+      layout: {
+        x: 0,
+        y: 780,
+        w: 720,
+        h: 320,
+        orientation: "landscape" as const,
+      },
       content: {
         items: [
           {
@@ -51,6 +73,13 @@ export function defaultSections() {
       id: uid(),
       type: "contact" as const,
       position: 4,
+      layout: {
+        x: 0,
+        y: 1040,
+        w: 448,
+        h: 420,
+        orientation: "portrait" as const,
+      },
       content: {
         email: "you@example.com",
         location: "City, Country",

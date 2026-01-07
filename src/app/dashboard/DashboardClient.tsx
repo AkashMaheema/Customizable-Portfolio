@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Button, ButtonSecondary, LinkButton } from "@/components/Buttons";
@@ -49,23 +49,12 @@ export function DashboardClient({
 
   useEffect(() => {
     const u = debouncedUsername.trim();
-    if (!u) {
-      setAvailability("invalid");
-      return;
-    }
-
-    if (u === initialUsername) {
-      setAvailability("same");
-      return;
-    }
+    if (!u) return;
+    if (u === initialUsername) return;
 
     const cached = usernameCache[u];
-    if (cached) {
-      setAvailability(cached);
-      return;
-    }
-
-    setAvailability("checking");
+    if (cached) return;
+    if (availability !== "checking") return;
     const controller = new AbortController();
 
     fetch(`/api/username/check?username=${encodeURIComponent(u)}`, {
@@ -74,6 +63,7 @@ export function DashboardClient({
     })
       .then((r) => r.json())
       .then((data: { available?: boolean; reason?: string }) => {
+        if (controller.signal.aborted) return;
         if (data.reason === "invalid") {
           setUsernameCache((prev) => ({ ...prev, [u]: "invalid" }));
           setAvailability("invalid");
@@ -87,12 +77,16 @@ export function DashboardClient({
         setUsernameCache((prev) => ({ ...prev, [u]: next }));
         setAvailability(next);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        if (err && typeof err === "object" && "name" in err) {
+          if ((err as { name?: unknown }).name === "AbortError") return;
+        }
         setAvailability("error");
       });
 
     return () => controller.abort();
-  }, [debouncedUsername, initialUsername]);
+  }, [availability, debouncedUsername, initialUsername, usernameCache]);
 
   const usernameStatus =
     availability === "same"
@@ -198,6 +192,12 @@ export function DashboardClient({
 
                 if (trimmed === initialUsername) {
                   setAvailability("same");
+                  return;
+                }
+
+                const cached = usernameCache[trimmed];
+                if (cached) {
+                  setAvailability(cached);
                   return;
                 }
 

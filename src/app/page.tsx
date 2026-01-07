@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -11,18 +13,18 @@ export default function Home() {
             sections, dragging them into any order, and editing content inline.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <a
+            <Link
               href="/register"
               className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-950 px-5 text-sm font-medium text-white hover:bg-zinc-800"
             >
               Get started
-            </a>
-            <a
+            </Link>
+            <Link
               href="/login"
               className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-950 hover:bg-zinc-50"
             >
               Sign in
-            </a>
+            </Link>
           </div>
         </div>
       </div>

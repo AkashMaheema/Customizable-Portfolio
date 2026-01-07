@@ -2,19 +2,11 @@
 
 import {
   DndContext,
-  KeyboardSensor,
   PointerSensor,
-  closestCenter,
+  useDraggable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -33,6 +25,7 @@ function newSection(type: Section["type"], position: number): Section {
       id: uid(),
       type,
       position,
+      layout: { x: 0, y: 0, w: 720, h: 320, orientation: "landscape" },
       content: {
         name: "Your Name",
         headline: "What you do, in one sentence.",
@@ -46,6 +39,7 @@ function newSection(type: Section["type"], position: number): Section {
       id: uid(),
       type,
       position,
+      layout: { x: 0, y: 0, w: 448, h: 420, orientation: "portrait" },
       content: { body: "Write a short bio." },
     };
   }
@@ -55,6 +49,7 @@ function newSection(type: Section["type"], position: number): Section {
       id: uid(),
       type,
       position,
+      layout: { x: 0, y: 0, w: 448, h: 420, orientation: "portrait" },
       content: { items: ["TypeScript", "React"] },
     };
   }
@@ -64,6 +59,7 @@ function newSection(type: Section["type"], position: number): Section {
       id: uid(),
       type,
       position,
+      layout: { x: 0, y: 0, w: 720, h: 320, orientation: "landscape" },
       content: {
         items: [
           {
@@ -81,6 +77,7 @@ function newSection(type: Section["type"], position: number): Section {
       id: uid(),
       type,
       position,
+      layout: { x: 0, y: 0, w: 448, h: 420, orientation: "portrait" },
       content: { email: "you@example.com", location: "City, Country" },
     };
   }
@@ -89,6 +86,7 @@ function newSection(type: Section["type"], position: number): Section {
     id: uid(),
     type: "custom",
     position,
+    layout: { x: 0, y: 0, w: 448, h: 420, orientation: "portrait" },
     content: { title: "Custom section", body: "" },
   };
 }
@@ -98,6 +96,105 @@ function normalizePositions(sections: Section[]) {
     .slice()
     .sort((a, b) => a.position - b.position)
     .map((s, i) => ({ ...s, position: i }));
+}
+
+type SectionLayout = {
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  orientation?: "portrait" | "landscape";
+};
+
+type NormalizedLayout = {
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  orientation: "portrait" | "landscape";
+};
+
+function defaultSizePx(orientation: NormalizedLayout["orientation"]) {
+  return orientation === "landscape" ? { w: 720, h: 320 } : { w: 448, h: 420 };
+}
+
+function normalizeLayout(input: unknown): NormalizedLayout {
+  const layout = (input ?? {}) as SectionLayout;
+  const orientation =
+    layout.orientation === "landscape" ? "landscape" : "portrait";
+  const size = defaultSizePx(orientation);
+
+  const w =
+    typeof layout.w === "number" && Number.isFinite(layout.w)
+      ? layout.w
+      : undefined;
+  const h =
+    typeof layout.h === "number" && Number.isFinite(layout.h)
+      ? layout.h
+      : undefined;
+
+  return {
+    x: typeof layout.x === "number" && Number.isFinite(layout.x) ? layout.x : 0,
+    y: typeof layout.y === "number" && Number.isFinite(layout.y) ? layout.y : 0,
+    w: w && w > 0 ? w : size.w,
+    h: h && h > 0 ? h : size.h,
+    orientation,
+  };
+}
+
+function estimatedCardHeight(layout: NormalizedLayout) {
+  return (layout.h ?? defaultSizePx(layout.orientation).h) + 40;
+}
+
+function clamp(num: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, num));
+}
+
+function ResizeHandle({
+  layout,
+  onSizeChange,
+}: {
+  layout: NormalizedLayout;
+  onSizeChange: (next: { w?: number; h?: number }) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="Resize section"
+      className="pointer-events-auto absolute bottom-4 right-4 h-5 w-5 cursor-nwse-resize rounded-md border border-zinc-200 bg-white"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startW = typeof layout.w === "number" ? layout.w : 0;
+        const startH = typeof layout.h === "number" ? layout.h : 0;
+
+        const move = (ev: PointerEvent) => {
+          const nextW = Math.max(
+            200,
+            Math.min(5000, startW + (ev.clientX - startX))
+          );
+          const nextH = Math.max(
+            200,
+            Math.min(5000, startH + (ev.clientY - startY))
+          );
+          onSizeChange({ w: nextW, h: nextH });
+        };
+
+        const up = () => {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+          window.removeEventListener("pointercancel", up);
+        };
+
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+      }}
+    />
+  );
 }
 
 type BackgroundStyle = {
@@ -176,17 +273,76 @@ function SortableChrome({
   dragHandle,
   background,
   onBackgroundChange,
+  onOrientationChange,
+  onSizeChange,
   onDelete,
 }: {
   section: Section;
   dragHandle: React.ReactNode;
   background: Required<BackgroundStyle>;
   onBackgroundChange: (next: Required<BackgroundStyle>) => void;
+  onOrientationChange: (next: Required<SectionLayout>["orientation"]) => void;
+  onSizeChange: (next: { w?: number; h?: number }) => void;
   onDelete: () => void;
 }) {
+  const layout = normalizeLayout((section as { layout?: unknown }).layout);
   return (
     <div className="pointer-events-auto flex flex-wrap items-center gap-2">
       {dragHandle}
+
+      <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-1">
+        <span className="text-xs font-medium text-zinc-700">Layout</span>
+        <select
+          value={layout.orientation}
+          onChange={(e) =>
+            onOrientationChange(
+              e.target.value === "landscape" ? "landscape" : "portrait"
+            )
+          }
+          className="h-7 rounded-lg border border-zinc-200 bg-white px-2 text-xs text-zinc-950 outline-none focus:border-zinc-400"
+          aria-label="Section orientation"
+        >
+          <option value="portrait">Portrait</option>
+          <option value="landscape">Landscape</option>
+        </select>
+
+        <input
+          type="number"
+          inputMode="numeric"
+          value={
+            Number.isFinite(layout.w) ? String(Math.round(layout.w ?? 0)) : ""
+          }
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            onSizeChange({
+              w: Number.isFinite(next) && next > 0 ? next : undefined,
+            });
+          }}
+          className="h-7 w-20 rounded-lg border border-zinc-200 bg-white px-2 text-xs text-zinc-950 outline-none focus:border-zinc-400"
+          aria-label="Section width in px"
+          placeholder="W"
+          min={200}
+          max={5000}
+        />
+        <input
+          type="number"
+          inputMode="numeric"
+          value={
+            Number.isFinite(layout.h) ? String(Math.round(layout.h ?? 0)) : ""
+          }
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            onSizeChange({
+              h: Number.isFinite(next) && next > 0 ? next : undefined,
+            });
+          }}
+          className="h-7 w-20 rounded-lg border border-zinc-200 bg-white px-2 text-xs text-zinc-950 outline-none focus:border-zinc-400"
+          aria-label="Section height in px"
+          placeholder="H"
+          min={200}
+          max={5000}
+        />
+      </div>
 
       <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-1">
         <span className="text-xs font-medium text-zinc-700">Bg</span>
@@ -364,18 +520,18 @@ function SortablePreviewSection({
   onChange: (next: Section) => void;
   onDelete: () => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: section.id });
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({ id: section.id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+  const layout = normalizeLayout((section as { layout?: unknown }).layout);
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    left: layout.x,
+    top: layout.y,
+    zIndex: 1 + section.position,
+    width: typeof layout.w === "number" ? layout.w : undefined,
+    minHeight: typeof layout.h === "number" ? layout.h : undefined,
+    maxWidth: "100%",
   };
 
   const background = normalizeBackgroundStyle(section.style?.background);
@@ -394,6 +550,40 @@ function SortablePreviewSection({
     >
       Drag
     </button>
+  );
+
+  const resizeHandle = (
+    <button
+      type="button"
+      className="pointer-events-auto absolute bottom-3 right-3 h-4 w-4 rounded border border-zinc-200 bg-white/90 touch-none cursor-nwse-resize"
+      aria-label="Resize section"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const start = normalizeLayout((section as { layout?: unknown }).layout);
+
+        const onMove = (ev: PointerEvent) => {
+          const nextW = clamp(start.w + (ev.clientX - startX), 240, 5000);
+          const nextH = clamp(start.h + (ev.clientY - startY), 240, 5000);
+
+          onChange({
+            ...section,
+            layout: { ...start, w: nextW, h: nextH },
+          });
+        };
+
+        const onUp = () => {
+          window.removeEventListener("pointermove", onMove, true);
+          window.removeEventListener("pointerup", onUp, true);
+        };
+
+        window.addEventListener("pointermove", onMove, true);
+        window.addEventListener("pointerup", onUp, true);
+      }}
+    />
   );
 
   if (section.type === "hero") {
@@ -415,7 +605,7 @@ function SortablePreviewSection({
       <section
         ref={setNodeRef}
         style={containerStyle}
-        className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -433,9 +623,31 @@ function SortablePreviewSection({
                 },
               })
             }
+            onOrientationChange={(nextOrientation) =>
+              onChange({
+                ...section,
+                layout: { ...layout, orientation: nextOrientation },
+              })
+            }
+            onSizeChange={(nextSize) =>
+              onChange({
+                ...section,
+                layout: { ...layout, ...nextSize },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
+
+        <ResizeHandle
+          layout={layout}
+          onSizeChange={(nextSize) =>
+            onChange({
+              ...section,
+              layout: { ...layout, ...nextSize },
+            })
+          }
+        />
 
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
           Hero
@@ -492,6 +704,8 @@ function SortablePreviewSection({
             })
           }
         />
+
+        {resizeHandle}
       </section>
     );
   }
@@ -502,7 +716,7 @@ function SortablePreviewSection({
       <section
         ref={setNodeRef}
         style={containerStyle}
-        className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -520,9 +734,31 @@ function SortablePreviewSection({
                 },
               })
             }
+            onOrientationChange={(nextOrientation) =>
+              onChange({
+                ...section,
+                layout: { ...layout, orientation: nextOrientation },
+              })
+            }
+            onSizeChange={(nextSize) =>
+              onChange({
+                ...section,
+                layout: { ...layout, ...nextSize },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
+
+        <ResizeHandle
+          layout={layout}
+          onSizeChange={(nextSize) =>
+            onChange({
+              ...section,
+              layout: { ...layout, ...nextSize },
+            })
+          }
+        />
 
         <h2 className="text-lg font-semibold text-zinc-950">About</h2>
         <textarea
@@ -536,6 +772,8 @@ function SortablePreviewSection({
           }
           placeholder="Write a short bio."
         />
+
+        {resizeHandle}
       </section>
     );
   }
@@ -549,7 +787,7 @@ function SortablePreviewSection({
       <section
         ref={setNodeRef}
         style={containerStyle}
-        className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -567,9 +805,31 @@ function SortablePreviewSection({
                 },
               })
             }
+            onOrientationChange={(nextOrientation) =>
+              onChange({
+                ...section,
+                layout: { ...layout, orientation: nextOrientation },
+              })
+            }
+            onSizeChange={(nextSize) =>
+              onChange({
+                ...section,
+                layout: { ...layout, ...nextSize },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
+
+        <ResizeHandle
+          layout={layout}
+          onSizeChange={(nextSize) =>
+            onChange({
+              ...section,
+              layout: { ...layout, ...nextSize },
+            })
+          }
+        />
 
         <h2 className="text-lg font-semibold text-zinc-950">Skills</h2>
         <input
@@ -601,6 +861,8 @@ function SortablePreviewSection({
             ))}
           </div>
         ) : null}
+
+        {resizeHandle}
       </section>
     );
   }
@@ -610,7 +872,7 @@ function SortablePreviewSection({
       <section
         ref={setNodeRef}
         style={containerStyle}
-        className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -628,13 +890,37 @@ function SortablePreviewSection({
                 },
               })
             }
+            onOrientationChange={(nextOrientation) =>
+              onChange({
+                ...section,
+                layout: { ...layout, orientation: nextOrientation },
+              })
+            }
+            onSizeChange={(nextSize) =>
+              onChange({
+                ...section,
+                layout: { ...layout, ...nextSize },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
+
+        <ResizeHandle
+          layout={layout}
+          onSizeChange={(nextSize) =>
+            onChange({
+              ...section,
+              layout: { ...layout, ...nextSize },
+            })
+          }
+        />
         <h2 className="text-lg font-semibold text-zinc-950">Projects</h2>
         <div className="mt-4">
           <ProjectsEditor section={section} onChange={onChange} />
         </div>
+
+        {resizeHandle}
       </section>
     );
   }
@@ -646,7 +932,7 @@ function SortablePreviewSection({
       <section
         ref={setNodeRef}
         style={containerStyle}
-        className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -664,9 +950,31 @@ function SortablePreviewSection({
                 },
               })
             }
+            onOrientationChange={(nextOrientation) =>
+              onChange({
+                ...section,
+                layout: { ...layout, orientation: nextOrientation },
+              })
+            }
+            onSizeChange={(nextSize) =>
+              onChange({
+                ...section,
+                layout: { ...layout, ...nextSize },
+              })
+            }
             onDelete={onDelete}
           />
         </div>
+
+        <ResizeHandle
+          layout={layout}
+          onSizeChange={(nextSize) =>
+            onChange({
+              ...section,
+              layout: { ...layout, ...nextSize },
+            })
+          }
+        />
 
         <h2 className="text-lg font-semibold text-zinc-950">Contact</h2>
         <div className="mt-4 grid gap-3">
@@ -699,6 +1007,8 @@ function SortablePreviewSection({
             />
           </label>
         </div>
+
+        {resizeHandle}
       </section>
     );
   }
@@ -710,7 +1020,7 @@ function SortablePreviewSection({
     <section
       ref={setNodeRef}
       style={containerStyle}
-      className={`relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+      className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
         isDragging ? "opacity-80" : ""
       }`}
     >
@@ -728,9 +1038,31 @@ function SortablePreviewSection({
               },
             })
           }
+          onOrientationChange={(nextOrientation) =>
+            onChange({
+              ...section,
+              layout: { ...layout, orientation: nextOrientation },
+            })
+          }
+          onSizeChange={(nextSize) =>
+            onChange({
+              ...section,
+              layout: { ...layout, ...nextSize },
+            })
+          }
           onDelete={onDelete}
         />
       </div>
+
+      <ResizeHandle
+        layout={layout}
+        onSizeChange={(nextSize) =>
+          onChange({
+            ...section,
+            layout: { ...layout, ...nextSize },
+          })
+        }
+      />
       <label className="grid gap-1">
         <span className="text-xs font-medium text-zinc-700">Title</span>
         <input
@@ -759,6 +1091,8 @@ function SortablePreviewSection({
           placeholder="Write something..."
         />
       </label>
+
+      {resizeHandle}
     </section>
   );
 }
@@ -774,18 +1108,18 @@ function SortableHeroHeader({
   onChange: (next: Section) => void;
   onDelete: () => void;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: section.id });
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({ id: section.id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+  const layout = normalizeLayout((section as { layout?: unknown }).layout);
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    left: layout.x,
+    top: layout.y,
+    zIndex: 1 + section.position,
+    width: typeof layout.w === "number" ? layout.w : undefined,
+    minHeight: typeof layout.h === "number" ? layout.h : undefined,
+    maxWidth: "100%",
   };
 
   const background = normalizeBackgroundStyle(section.style?.background);
@@ -820,11 +1154,45 @@ function SortableHeroHeader({
     </button>
   );
 
+  const resizeHandle = (
+    <button
+      type="button"
+      className="pointer-events-auto absolute bottom-3 right-3 h-4 w-4 rounded border border-zinc-200 bg-white/90 touch-none cursor-nwse-resize"
+      aria-label="Resize section"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const start = normalizeLayout((section as { layout?: unknown }).layout);
+
+        const onMove = (ev: PointerEvent) => {
+          const nextW = clamp(start.w + (ev.clientX - startX), 240, 5000);
+          const nextH = clamp(start.h + (ev.clientY - startY), 240, 5000);
+
+          onChange({
+            ...section,
+            layout: { ...start, w: nextW, h: nextH },
+          });
+        };
+
+        const onUp = () => {
+          window.removeEventListener("pointermove", onMove, true);
+          window.removeEventListener("pointerup", onUp, true);
+        };
+
+        window.addEventListener("pointermove", onMove, true);
+        window.addEventListener("pointerup", onUp, true);
+      }}
+    />
+  );
+
   return (
     <header
       ref={setNodeRef}
       style={containerStyle}
-      className={`relative rounded-3xl border border-zinc-200 bg-white p-10 shadow-sm ${
+      className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-10 shadow-sm ${
         isDragging ? "opacity-80" : ""
       }`}
     >
@@ -842,9 +1210,31 @@ function SortableHeroHeader({
               },
             })
           }
+          onOrientationChange={(nextOrientation) =>
+            onChange({
+              ...section,
+              layout: { ...layout, orientation: nextOrientation },
+            })
+          }
+          onSizeChange={(nextSize) =>
+            onChange({
+              ...section,
+              layout: { ...layout, ...nextSize },
+            })
+          }
           onDelete={onDelete}
         />
       </div>
+
+      <ResizeHandle
+        layout={layout}
+        onSizeChange={(nextSize) =>
+          onChange({
+            ...section,
+            layout: { ...layout, ...nextSize },
+          })
+        }
+      />
 
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
         @{username}
@@ -910,6 +1300,8 @@ function SortableHeroHeader({
           <div className="h-28 w-28 rounded-3xl border border-zinc-200 bg-zinc-50" />
         </div>
       </div>
+
+      {resizeHandle}
     </header>
   );
 }
@@ -1049,7 +1441,17 @@ export function EditorClient({
   const toast = useToast();
 
   const [sections, setSections] = useState<Section[]>(() =>
-    normalizePositions(initialSections)
+    normalizePositions(initialSections).map((s, i) => {
+      const layout = (s as { layout?: unknown }).layout;
+      const normalized = normalizeLayout(layout);
+      const seeded =
+        typeof (layout as SectionLayout | undefined)?.x === "number" ||
+        typeof (layout as SectionLayout | undefined)?.y === "number"
+          ? normalized
+          : { ...normalized, x: 0, y: i * 220 };
+
+      return { ...s, layout: seeded };
+    })
   );
 
   const [pageBackground, setPageBackground] = useState(
@@ -1062,18 +1464,21 @@ export function EditorClient({
   const [newType, setNewType] = useState<Section["type"]>("custom");
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
-  const ids = useMemo(() => sections.map((s) => s.id), [sections]);
   const ordered = useMemo(
     () => sections.slice().sort((a, b) => a.position - b.position),
     [sections]
   );
-  const heroFirst = ordered.length > 0 && ordered[0]?.type === "hero";
+
+  const canvasMinHeight = useMemo(() => {
+    const maxBottom = ordered.reduce((max, s) => {
+      const layout = normalizeLayout((s as { layout?: unknown }).layout);
+      return Math.max(max, layout.y + estimatedCardHeight(layout));
+    }, 0);
+    return Math.max(720, maxBottom + 160);
+  }, [ordered]);
 
   async function save() {
     setSaving(true);
@@ -1120,21 +1525,38 @@ export function EditorClient({
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
           onDragEnd={(event) => {
-            const { active, over } = event;
-            if (!over) return;
-            if (active.id === over.id) return;
-
-            const oldIndex = sections.findIndex((s) => s.id === active.id);
-            const newIndex = sections.findIndex((s) => s.id === over.id);
-            const moved = arrayMove(sections, oldIndex, newIndex);
-            setSections(normalizePositions(moved));
+            const { active, delta } = event;
+            setSections((prev) =>
+              prev.map((s) => {
+                if (s.id !== active.id) return s;
+                const layout = normalizeLayout(
+                  (s as { layout?: unknown }).layout
+                );
+                return {
+                  ...s,
+                  layout: {
+                    ...layout,
+                    x: Math.max(0, layout.x + delta.x),
+                    y: Math.max(0, layout.y + delta.y),
+                  },
+                };
+              })
+            );
           }}
         >
-          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-            <div className="grid gap-8">
-              {ordered.map((section, index) => {
+          <div className="w-full">
+            <div
+              className="relative"
+              style={{
+                minHeight: canvasMinHeight,
+                backgroundImage:
+                  "linear-gradient(to right, rgba(228,228,231,0.8) 1px, transparent 1px), linear-gradient(to bottom, rgba(228,228,231,0.8) 1px, transparent 1px)",
+                backgroundSize: "32px 32px",
+                backgroundPosition: "0 0",
+              }}
+            >
+              {ordered.map((section) => {
                 const onChange = (next: Section) =>
                   setSections((prev) =>
                     normalizePositions(
@@ -1146,7 +1568,7 @@ export function EditorClient({
                     normalizePositions(prev.filter((p) => p.id !== section.id))
                   );
 
-                if (heroFirst && index === 0) {
+                if (section.type === "hero") {
                   return (
                     <SortableHeroHeader
                       key={section.id}
@@ -1169,12 +1591,12 @@ export function EditorClient({
                 );
               })}
             </div>
-          </SortableContext>
+          </div>
         </DndContext>
       </div>
 
       <div className="fixed inset-x-0 bottom-4 z-40">
-        <div className="mx-auto w-full max-w-5xl px-6">
+        <div className="mx-auto w-full max-w-none px-6">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
             <div className="flex items-center gap-2">
               <LinkButton href="/dashboard">Back</LinkButton>

@@ -68,12 +68,23 @@ export const sectionStyleSchema = z
   })
   .optional();
 
+export const sectionLayoutSchema = z
+  .object({
+    x: z.number().finite().optional(),
+    y: z.number().finite().optional(),
+    w: z.number().finite().positive().max(5000).optional(),
+    h: z.number().finite().positive().max(5000).optional(),
+    orientation: z.enum(["portrait", "landscape"]).optional(),
+  })
+  .optional();
+
 export const sectionSchema = z.object({
   id: z.string().min(1),
   type: sectionTypeSchema,
   position: z.number().int().nonnegative(),
   content: z.record(z.string(), z.any()),
   style: sectionStyleSchema,
+  layout: sectionLayoutSchema,
 });
 
 export const sectionsSchema = z.array(sectionSchema);

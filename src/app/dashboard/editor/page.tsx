@@ -26,7 +26,12 @@ export default async function EditorPage() {
   if (!portfolio.success) redirect("/dashboard");
 
   return (
-    <Shell title="Editor" subtitle="Reorder sections and edit content inline.">
+    <Shell
+      title="Editor"
+      subtitle="Reorder sections and edit content inline."
+      fullWidth
+      noCard
+    >
       <ToastProvider>
         <EditorClient
           username={user.username}

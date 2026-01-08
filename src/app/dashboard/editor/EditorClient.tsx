@@ -8,7 +8,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Section, Sections } from "@/lib/types";
 import { sectionsSchema } from "@/lib/validation";
@@ -514,14 +514,21 @@ function SortablePreviewSection({
   username,
   onChange,
   onDelete,
+  registerSectionNode,
 }: {
   section: Section;
   username: string;
   onChange: (next: Section) => void;
   onDelete: () => void;
+  registerSectionNode?: (id: string, node: HTMLElement | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: section.id });
+
+  const setRefs = (node: HTMLElement | null) => {
+    setNodeRef(node);
+    registerSectionNode?.(section.id, node);
+  };
 
   const layout = normalizeLayout((section as { layout?: unknown }).layout);
   const style: React.CSSProperties = {
@@ -530,7 +537,7 @@ function SortablePreviewSection({
     top: layout.y,
     zIndex: 1 + section.position,
     width: typeof layout.w === "number" ? layout.w : undefined,
-    minHeight: typeof layout.h === "number" ? layout.h : undefined,
+    height: typeof layout.h === "number" ? layout.h : undefined,
     maxWidth: "100%",
   };
 
@@ -603,9 +610,9 @@ function SortablePreviewSection({
 
     return (
       <section
-        ref={setNodeRef}
+        ref={setRefs}
         style={containerStyle}
-        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative overflow-auto rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -714,9 +721,9 @@ function SortablePreviewSection({
     const body = String(section.content.body ?? "");
     return (
       <section
-        ref={setNodeRef}
+        ref={setRefs}
         style={containerStyle}
-        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative overflow-auto rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -785,9 +792,9 @@ function SortablePreviewSection({
     const value = items.join(", ");
     return (
       <section
-        ref={setNodeRef}
+        ref={setRefs}
         style={containerStyle}
-        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative overflow-auto rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -870,9 +877,9 @@ function SortablePreviewSection({
   if (section.type === "projects") {
     return (
       <section
-        ref={setNodeRef}
+        ref={setRefs}
         style={containerStyle}
-        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative overflow-auto rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -930,9 +937,9 @@ function SortablePreviewSection({
     const location = String(section.content.location ?? "");
     return (
       <section
-        ref={setNodeRef}
+        ref={setRefs}
         style={containerStyle}
-        className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+        className={`md:absolute relative overflow-auto rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
           isDragging ? "opacity-80" : ""
         }`}
       >
@@ -1018,9 +1025,9 @@ function SortablePreviewSection({
   const body = String(section.content.body ?? "");
   return (
     <section
-      ref={setNodeRef}
+      ref={setRefs}
       style={containerStyle}
-      className={`md:absolute relative rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
+      className={`md:absolute relative overflow-auto rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm ${
         isDragging ? "opacity-80" : ""
       }`}
     >
@@ -1102,14 +1109,21 @@ function SortableHeroHeader({
   username,
   onChange,
   onDelete,
+  registerSectionNode,
 }: {
   section: Section;
   username: string;
   onChange: (next: Section) => void;
   onDelete: () => void;
+  registerSectionNode?: (id: string, node: HTMLElement | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: section.id });
+
+  const setRefs = (node: HTMLElement | null) => {
+    setNodeRef(node);
+    registerSectionNode?.(section.id, node);
+  };
 
   const layout = normalizeLayout((section as { layout?: unknown }).layout);
   const style: React.CSSProperties = {
@@ -1118,7 +1132,7 @@ function SortableHeroHeader({
     top: layout.y,
     zIndex: 1 + section.position,
     width: typeof layout.w === "number" ? layout.w : undefined,
-    minHeight: typeof layout.h === "number" ? layout.h : undefined,
+    height: typeof layout.h === "number" ? layout.h : undefined,
     maxWidth: "100%",
   };
 
@@ -1440,6 +1454,11 @@ export function EditorClient({
   const router = useRouter();
   const toast = useToast();
 
+  const sectionNodes = useRef<Record<string, HTMLElement | null>>({});
+  const registerSectionNode = (id: string, node: HTMLElement | null) => {
+    sectionNodes.current[id] = node;
+  };
+
   const [sections, setSections] = useState<Section[]>(() =>
     normalizePositions(initialSections).map((s, i) => {
       const layout = (s as { layout?: unknown }).layout;
@@ -1471,6 +1490,64 @@ export function EditorClient({
     () => sections.slice().sort((a, b) => a.position - b.position),
     [sections]
   );
+
+  const GRID_PX = 32;
+  const DEFAULT_SECTION_GAP_PX = GRID_PX;
+
+  function roundUpToGridPx(px: number) {
+    return Math.ceil(px / GRID_PX) * GRID_PX;
+  }
+
+  function autoFitHeights() {
+    setSections((prev) =>
+      prev.map((s) => {
+        const node = sectionNodes.current[s.id];
+        if (!node) return s;
+
+        const layout = normalizeLayout((s as { layout?: unknown }).layout);
+        const measured = node.scrollHeight;
+        const nextH = clamp(roundUpToGridPx(measured), 240, 5000);
+
+        return {
+          ...s,
+          layout: {
+            ...layout,
+            h: nextH,
+          },
+        };
+      })
+    );
+
+    toast.success("Heights updated", "Section heights were auto-fitted.");
+  }
+
+  function applyDefaultGap() {
+    setSections((prev) => {
+      const sorted = prev.slice().sort((a, b) => a.position - b.position);
+      let y = 0;
+
+      const next = sorted.map((s) => {
+        const layout = normalizeLayout((s as { layout?: unknown }).layout);
+        const h = typeof layout.h === "number" ? layout.h : 0;
+
+        const nextSection: Section = {
+          ...s,
+          layout: {
+            ...layout,
+            x: Math.max(0, layout.x),
+            y,
+          },
+        };
+
+        y += h + DEFAULT_SECTION_GAP_PX;
+        return nextSection;
+      });
+
+      return normalizePositions(next);
+    });
+
+    toast.success("Spacing applied", "Added default gap between sections.");
+  }
 
   const canvasMinHeight = useMemo(() => {
     const maxBottom = ordered.reduce((max, s) => {
@@ -1576,6 +1653,7 @@ export function EditorClient({
                       username={username}
                       onChange={onChange}
                       onDelete={onDelete}
+                      registerSectionNode={registerSectionNode}
                     />
                   );
                 }
@@ -1587,6 +1665,7 @@ export function EditorClient({
                     username={username}
                     onChange={onChange}
                     onDelete={onDelete}
+                    registerSectionNode={registerSectionNode}
                   />
                 );
               })}
@@ -1618,6 +1697,14 @@ export function EditorClient({
                   className="h-6 w-8 rounded-md border border-zinc-200 bg-white p-0"
                 />
               </div>
+
+              <ButtonSecondary onClick={autoFitHeights}>
+                Auto-fit heights
+              </ButtonSecondary>
+
+              <ButtonSecondary onClick={applyDefaultGap}>
+                Apply gap
+              </ButtonSecondary>
 
               <select
                 value={newType}

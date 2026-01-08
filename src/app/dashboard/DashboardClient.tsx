@@ -106,6 +106,41 @@ export function DashboardClient({
   const canSaveUsername =
     username.trim() !== initialUsername && availability === "available";
 
+  async function copyToClipboard(text: string) {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "0";
+    textarea.style.left = "0";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (!ok) throw new Error("Copy failed");
+  }
+
+  async function copyPublicUrl() {
+    try {
+      const origin = window.location.origin;
+      const path = publicUrl.startsWith("/") ? publicUrl : `/${publicUrl}`;
+      const full = `${origin}${path}`;
+
+      await copyToClipboard(full);
+      toast.success("Copied public URL", "Link copied to clipboard.");
+    } catch {
+      toast.error("Copy failed", "Please copy the URL manually.");
+    }
+  }
+
   async function saveUsername() {
     setSavingUsername(true);
     const res = await fetch("/api/username", {
@@ -226,11 +261,12 @@ export function DashboardClient({
           </Button>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <p className="text-sm text-zinc-700">
             Public URL:{" "}
             <span className="font-medium text-zinc-950">{publicUrl}</span>
           </p>
+          <ButtonSecondary onClick={copyPublicUrl}>Copy URL</ButtonSecondary>
         </div>
       </div>
 

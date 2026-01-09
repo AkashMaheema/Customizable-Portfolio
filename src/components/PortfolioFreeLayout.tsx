@@ -137,6 +137,10 @@ export function PortfolioFreeLayout({
   const [heights, setHeights] = useState<Record<string, number>>({});
   const observers = useRef<Record<string, ResizeObserver>>({});
 
+  // Grid snapping stays 32px; visual gap reduced to 16px
+  const GRID_PX = 32;
+  const SECTION_GAP_PX = 0;
+
   const registerNode = useCallback((id: string, node: HTMLElement | null) => {
     const existing = observers.current[id];
     if (existing) {
@@ -167,18 +171,51 @@ export function PortfolioFreeLayout({
     observers.current[id] = ro;
   }, []);
 
-  const minHeight = useMemo(() => {
-    const maxBottom = sorted.reduce((max, s) => {
+  // Compute compressed tops per column using measured heights
+  const { topsMap, minHeight } = useMemo(() => {
+    const items = sorted.map((s) => {
       const layout = normalizeLayout((s as { layout?: unknown }).layout);
       const size = defaultSizePx(layout.orientation);
-      const fallbackH = layout.h ?? size.h;
       const measured = heights[s.id];
       const h =
-        typeof measured === "number" && measured > 0 ? measured : fallbackH;
-      return Math.max(max, layout.y + h);
-    }, 0);
+        typeof layout.h === "number" && layout.h > 0
+          ? layout.h
+          : typeof measured === "number" && measured > 0
+          ? measured
+          : size.h;
+      return { id: s.id, x: layout.x, y: layout.y, h };
+    });
 
-    return maxBottom + 160;
+    // Group by column using GRID_PX snapping
+    const byCol = new Map<
+      number,
+      Array<{ id: string; x: number; y: number; h: number }>
+    >();
+    for (const it of items) {
+      const key = Math.round(it.x / GRID_PX) * GRID_PX;
+      const list = byCol.get(key) ?? [];
+      list.push(it);
+      byCol.set(key, list);
+    }
+
+    const tops: Record<string, number> = {};
+    let globalMaxBottom = 0;
+
+    // For each column, stack from top (0), preserving order by original y
+    for (const [, list] of byCol) {
+      list.sort((a, b) => a.y - b.y);
+      let cursor = 0;
+      for (const it of list) {
+        tops[it.id] = cursor;
+        globalMaxBottom = Math.max(globalMaxBottom, cursor + it.h);
+        cursor = cursor + it.h + SECTION_GAP_PX;
+      }
+    }
+
+    return {
+      topsMap: tops,
+      minHeight: globalMaxBottom + 80,
+    };
   }, [heights, sorted]);
 
   return (
@@ -186,7 +223,7 @@ export function PortfolioFreeLayout({
       className="min-h-screen"
       style={pageBackground ? { backgroundColor: pageBackground } : undefined}
     >
-      <div className="w-full py-14">
+      <div className="w-full py-4">
         <div className="relative" style={{ minHeight }}>
           {sorted.map((section) => {
             const layout = normalizeLayout(
@@ -194,12 +231,20 @@ export function PortfolioFreeLayout({
             );
             const defaults = defaultSizePx(layout.orientation);
             const width = layout.w ?? defaults.w;
+            const measured = heights[section.id];
+            const height =
+              typeof layout.h === "number" && layout.h > 0
+                ? layout.h
+                : typeof measured === "number" && measured > 0
+                ? measured
+                : defaults.h;
 
             const wrapperStyle: CSSProperties = {
               left: layout.x,
-              top: layout.y,
+              top: topsMap[section.id] ?? layout.y,
               zIndex: 1 + section.position,
               width,
+              height,
               maxWidth: "100%",
             };
 
@@ -228,27 +273,27 @@ export function PortfolioFreeLayout({
 
                       return (
                         <section
-                          className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                          className="h-full overflow-auto rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
                           style={backgroundCss(section.style?.background)}
                         >
                           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                             @{username}
                           </p>
-                          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">
+                          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">
                             {name}
                           </h2>
                           {headline ? (
-                            <p className="mt-3 text-sm leading-7 text-zinc-600">
+                            <p className="mt-1 text-sm leading-7 text-zinc-600">
                               {headline}
                             </p>
                           ) : null}
                           {links.length ? (
-                            <div className="mt-5 flex flex-wrap gap-2">
+                            <div className="mt-1 flex flex-wrap gap-1">
                               {links.map((l, i) => (
                                 <a
                                   key={`${section.id}_link_${i}`}
                                   href={l.href}
-                                  className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50"
+                                  className="inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-950 hover:bg-zinc-50"
                                 >
                                   {l.label}
                                 </a>
@@ -263,13 +308,13 @@ export function PortfolioFreeLayout({
                       const body = String(section.content.body ?? "");
                       return (
                         <section
-                          className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                          className="h-full overflow-auto rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
                           style={backgroundCss(section.style?.background)}
                         >
                           <h2 className="text-lg font-semibold text-zinc-950">
                             About
                           </h2>
-                          <p className="mt-3 text-sm leading-7 text-zinc-600">
+                          <p className="mt-1 text-sm leading-7 text-zinc-600">
                             {body}
                           </p>
                         </section>
@@ -284,17 +329,17 @@ export function PortfolioFreeLayout({
                         : [];
                       return (
                         <section
-                          className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                          className="h-full overflow-auto rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
                           style={backgroundCss(section.style?.background)}
                         >
                           <h2 className="text-lg font-semibold text-zinc-950">
                             Skills
                           </h2>
-                          <div className="mt-4 flex flex-wrap gap-2">
+                          <div className="mt-1 flex flex-wrap gap-1">
                             {items.map((s, i) => (
                               <span
                                 key={`${section.id}_skill_${i}`}
-                                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900"
+                                className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900"
                               >
                                 {s}
                               </span>
@@ -321,18 +366,18 @@ export function PortfolioFreeLayout({
 
                       return (
                         <section
-                          className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                          className="h-full overflow-auto rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
                           style={backgroundCss(section.style?.background)}
                         >
                           <h2 className="text-lg font-semibold text-zinc-950">
                             Projects
                           </h2>
-                          <div className="mt-4 grid gap-3">
+                          <div className="mt-1 grid gap-2">
                             {items.map((p, i) => (
                               <a
                                 key={`${section.id}_proj_${i}`}
                                 href={p.href}
-                                className="group rounded-2xl border border-zinc-200 bg-white p-5 hover:bg-zinc-50"
+                                className="group rounded-2xl border border-zinc-200 bg-white p-4 hover:bg-zinc-50"
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <p className="text-sm font-semibold text-zinc-950">
@@ -343,7 +388,7 @@ export function PortfolioFreeLayout({
                                   </span>
                                 </div>
                                 {p.description ? (
-                                  <p className="mt-2 text-sm leading-7 text-zinc-600">
+                                  <p className="mt-1 text-sm leading-7 text-zinc-600">
                                     {p.description}
                                   </p>
                                 ) : null}
@@ -360,13 +405,13 @@ export function PortfolioFreeLayout({
 
                       return (
                         <section
-                          className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                          className="h-full overflow-auto rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
                           style={backgroundCss(section.style?.background)}
                         >
                           <h2 className="text-lg font-semibold text-zinc-950">
                             Contact
                           </h2>
-                          <div className="mt-3 grid gap-2 text-sm text-zinc-600">
+                          <div className="mt-1 grid gap-1.5 text-sm text-zinc-600">
                             {email ? (
                               <a
                                 className="text-zinc-950 underline underline-offset-4"
@@ -386,14 +431,14 @@ export function PortfolioFreeLayout({
 
                       return (
                         <section
-                          className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm"
+                          className="h-full overflow-auto rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
                           style={backgroundCss(section.style?.background)}
                         >
                           <h2 className="text-lg font-semibold text-zinc-950">
                             {title}
                           </h2>
                           {body ? (
-                            <p className="mt-3 text-sm leading-7 text-zinc-600">
+                            <p className="mt-1 text-sm leading-7 text-zinc-600">
                               {body}
                             </p>
                           ) : null}

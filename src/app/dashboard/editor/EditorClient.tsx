@@ -692,12 +692,13 @@ function SortablePreviewSection({
         {links.length ? (
           <div className="mt-5 flex flex-wrap gap-2">
             {links.map((l, i) => (
-              <span
+              <a
                 key={`${section.id}_link_${i}`}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950"
+                href={l.href}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50"
               >
                 {l.label}
-              </span>
+              </a>
             ))}
           </div>
         ) : null}
@@ -1289,12 +1290,13 @@ function SortableHeroHeader({
           {links.length ? (
             <div className="mt-6 flex flex-wrap gap-2">
               {links.map((l, i) => (
-                <span
+                <a
                   key={`${section.id}_link_${i}`}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950"
+                  href={l.href}
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-950 hover:bg-zinc-50"
                 >
                   {l.label}
-                </span>
+                </a>
               ))}
             </div>
           ) : null}

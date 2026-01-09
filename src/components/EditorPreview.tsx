@@ -1,5 +1,8 @@
+"use client";
+
 import type { Sections } from "@/lib/types";
 import { PortfolioFreeLayout } from "@/components/PortfolioFreeLayout";
+import React from "react";
 
 type SectionLayout = {
   x?: number;
@@ -8,43 +11,6 @@ type SectionLayout = {
   h?: number;
   orientation?: "portrait" | "landscape";
 };
-
-type NormalizedLayout = {
-  x: number;
-  y: number;
-  w?: number;
-  h?: number;
-  orientation: "portrait" | "landscape";
-};
-
-function normalizeLayout(input: unknown): NormalizedLayout {
-  const layout = (input ?? {}) as SectionLayout;
-  const orientation =
-    layout.orientation === "landscape" ? "landscape" : "portrait";
-
-  return {
-    x: typeof layout.x === "number" && Number.isFinite(layout.x) ? layout.x : 0,
-    y: typeof layout.y === "number" && Number.isFinite(layout.y) ? layout.y : 0,
-    w:
-      typeof layout.w === "number" && Number.isFinite(layout.w) && layout.w > 0
-        ? layout.w
-        : undefined,
-    h:
-      typeof layout.h === "number" && Number.isFinite(layout.h) && layout.h > 0
-        ? layout.h
-        : undefined,
-    orientation,
-  };
-}
-
-function defaultSizePx(orientation: NormalizedLayout["orientation"]) {
-  return orientation === "landscape" ? { w: 720, h: 320 } : { w: 448, h: 420 };
-}
-
-function wrapperClass() {
-  // Small screens stack naturally; md+ is absolutely positioned.
-  return "w-full";
-}
 
 type BackgroundStyle = {
   mode?: "solid" | "gradient";
@@ -117,7 +83,7 @@ function backgroundCss(bg: unknown): React.CSSProperties {
   return { backgroundColor: n.color };
 }
 
-export function PortfolioView({
+export function EditorPreview({
   username,
   sections,
   page,
